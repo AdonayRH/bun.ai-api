@@ -187,6 +187,8 @@ body {
     border: none;
     box-shadow: none;
     overflow: hidden;
+    min-height: 0;
+    /* Important for nested flex scroll */
 }
 
 /* ========================================
@@ -198,9 +200,30 @@ body {
     background: rgba(18, 18, 26, 0.5);
     padding: 1rem;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    min-height: 0;
+    /* Important for nested flex scroll */
+}
+
+/* Custom scrollbar for artifacts panel */
+.artifacts-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.artifacts-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.artifacts-panel::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 3px;
+}
+
+.artifacts-panel::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
 }
 
 /* Empty State */
@@ -311,8 +334,31 @@ body {
     margin: 0;
     padding: 1rem;
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 400px;
+    /* Prevent huge blocks from taking entire panel */
     font-family: 'Fira Code', monospace;
     font-size: 0.9rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border) transparent;
+}
+
+.artifact-content::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.artifact-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.artifact-content::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 3px;
+}
+
+.artifact-content::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-primary);
 }
 
 /* ========================================
@@ -480,6 +526,10 @@ code[class*="language-"] {
 .messages-area {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
+    /* Prevent horizontal scroll */
+    min-height: 0;
+    /* Important for nested flex scroll */
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
@@ -868,4 +918,369 @@ code[class*="language-"] {
     .welcome-message h2 {
         font-size: 1.25rem;
     }
+}
+
+/* ========================================
+   Context Management Styles
+   ======================================== */
+
+.attachment-button {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-right: 0.75rem;
+    /* Space between clip and textarea */
+    margin-bottom: 0.25rem;
+    /* Align better with textarea */
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.attachment-button:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.attachment-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Context Card */
+.context-card {
+    display: flex;
+    align-items: center;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.25rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+    border-left: 3px solid var(--accent-primary);
+}
+
+.context-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--accent-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+}
+
+.context-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.context-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.context-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.context-details {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.context-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    transition: all 0.2s;
+    margin-left: 0.5rem;
+}
+
+.context-remove:hover {
+    color: #ef4444;
+    /* Red for remove */
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.context-remove svg {
+    width: 18px;
+    height: 18px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ========================================
+   File Selection Modal
+   ======================================== */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+    display: none !important;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    border-radius: 16px;
+    border: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    animation: scaleUp 0.3s ease;
+}
+
+@keyframes scaleUp {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.close-modal {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close-modal:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.token-stats {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid var(--glass-border);
+    padding: 0.75rem;
+    border-radius: 8px;
+    text-align: center;
+    color: var(--accent-primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.token-limit {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.token-stats.warning {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.file-list-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.secondary-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.file-list {
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.file-item {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--glass-border);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-item:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Custom Round Checkbox */
+.file-item input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--text-muted);
+    border-radius: 50%;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    background-color: transparent;
+    flex-shrink: 0;
+}
+
+.file-item input[type="checkbox"]:checked {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.file-item input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    transform: translate(-50%, -50%);
+}
+
+.file-item input[type="checkbox"]:hover {
+    border-color: var(--accent-secondary);
+}
+
+.file-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-size {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--glass-border);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.primary-btn {
+    background: var(--user-msg-bg);
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: transform 0.1s;
+}
+
+.primary-btn:hover {
+    transform: scale(1.02);
+}
+
+/* Context Action Button style needed for the Manage button */
+.context-action {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    transition: all 0.2s;
+    margin-left: 0.5rem;
+}
+
+.context-action:hover {
+    color: var(--accent-primary);
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.context-action svg {
+    width: 18px;
+    height: 18px;
 }

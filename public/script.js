@@ -12,14 +12,15 @@ const artifactsPanel = document.getElementById('artifactsPanel');
 let conversationHistory = [];
 
 // Markdown configuration
+const renderer = new marked.Renderer();
+
+// Override code block rendering to return empty string (hide in chat)
+renderer.code = function (code, language) {
+    return ''; // Return empty string to hide from chat
+};
+
 marked.setOptions({
-    highlight: function (code, lang) {
-        if (Prism.languages[lang]) {
-            return Prism.highlight(code, Prism.languages[lang], lang);
-        } else {
-            return code;
-        }
-    },
+    renderer: renderer,
     breaks: true
 });
 
@@ -191,6 +192,226 @@ function processArtifacts(fullText) {
     // Just maintain a list of extracted blocks. When a block is "closed" in the stream, we add it.
 }
 
+// --- Context / Project Handling ---
+const selectProjectBtn = document.getElementById('selectProjectBtn');
+const folderInput = document.getElementById('folderInput');
+const contextCard = document.getElementById('contextCard');
+const contextName = document.getElementById('contextName');
+const contextDetails = document.getElementById('contextDetails');
+const removeContextBtn = document.getElementById('removeContextBtn');
+const manageFilesBtn = document.getElementById('manageFilesBtn');
+
+// Modal Elements
+const filesModal = document.getElementById('filesModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const fileListContainer = document.getElementById('fileList');
+const tokenCountEl = document.getElementById('tokenCount');
+const selectAllBtn = document.getElementById('selectAllBtn');
+const selectNoneBtn = document.getElementById('selectNoneBtn');
+const confirmSelectionBtn = document.getElementById('confirmSelectionBtn');
+
+let projectFiles = []; // Array of { path, content, size, selected }
+let projectRootName = '';
+
+// --- Event Listeners ---
+
+if (selectProjectBtn) {
+    selectProjectBtn.addEventListener('click', () => {
+        folderInput.click();
+    });
+}
+
+if (removeContextBtn) {
+    removeContextBtn.addEventListener('click', () => {
+        projectFiles = [];
+        contextCard.classList.add('hidden');
+        folderInput.value = '';
+    });
+}
+
+// Open Modal
+if (manageFilesBtn) {
+    manageFilesBtn.addEventListener('click', (e) => {
+        e.preventDefault(); // Prevent any weird default behavior
+        console.log('Manage Files Button Clicked');
+
+        renderFileList();
+        updateTokenStats();
+
+        filesModal.classList.remove('hidden');
+        filesModal.style.display = 'flex'; // Force display just in case
+    });
+}
+
+// Close Modal
+if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', () => {
+        filesModal.classList.add('hidden');
+        filesModal.style.display = ''; // Clear inline style
+    });
+}
+
+if (confirmSelectionBtn) {
+    confirmSelectionBtn.addEventListener('click', () => {
+        filesModal.classList.add('hidden');
+        updateContextCardStatus();
+    });
+}
+
+// Select All / None
+if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+        projectFiles.forEach(f => f.selected = true);
+        renderFileList();
+        updateTokenStats();
+    });
+}
+
+if (selectNoneBtn) {
+    selectNoneBtn.addEventListener('click', () => {
+        projectFiles.forEach(f => f.selected = false);
+        renderFileList();
+        updateTokenStats();
+    });
+}
+
+
+if (folderInput) {
+    folderInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        contextName.textContent = 'Scanning Files...';
+        contextDetails.textContent = `Processing ${files.length} items...`;
+        contextCard.classList.remove('hidden');
+
+        // Get folder name
+        projectRootName = files[0].webkitRelativePath.split('/')[0];
+
+        // Limits
+        const MAX_FILE_SIZE = 100 * 1024; // 100KB per file limit
+        // We will allow loading MANY files into memory, but warn on Token Limit
+
+        const ignoredDirs = new Set(['node_modules', '.git', 'dist', 'build', 'coverage', '.next', '.nop']);
+        const allowedExts = new Set(['.ts', '.js', '.jsx', '.tsx', '.html', '.css', '.json', '.md', '.py', '.txt', '.java', '.c', '.cpp', '.rs', '.go']);
+
+        projectFiles = []; // Reset
+
+        let loadedCount = 0;
+
+        for (const file of files) {
+            const pathParts = file.webkitRelativePath.split('/');
+            // Check ignored directories
+            if (pathParts.some(part => ignoredDirs.has(part))) continue;
+
+            // Check extension
+            const ext = file.name.substring(file.name.lastIndexOf('.'));
+            if (!allowedExts.has(ext)) continue;
+
+            // Check size
+            if (file.size > MAX_FILE_SIZE) continue;
+
+            try {
+                const text = await readFileAsync(file);
+                projectFiles.push({
+                    path: file.webkitRelativePath,
+                    content: text,
+                    size: text.length,
+                    selected: true // Select by default unless huge?
+                });
+                loadedCount++;
+            } catch (err) {
+                console.error('Error reading file:', file.name, err);
+            }
+        }
+
+        contextName.textContent = projectRootName;
+        updateContextCardStatus();
+
+        // Automatically open modal if tokens seem high (> 5000 chars * 0.25 ~= 1250 tokens? No, typical 4chars=1token)
+        // Let's say if total chars > 40,000 (~10k tokens)
+        const totalChars = projectFiles.reduce((acc, f) => acc + f.size, 0);
+        if (totalChars > 30000) {
+            // Maybe just show status, user can click manage
+        }
+    });
+}
+
+function updateContextCardStatus() {
+    const selectedFiles = projectFiles.filter(f => f.selected);
+    const totalChars = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+    const estTokens = Math.round(totalChars / 4);
+
+    contextDetails.textContent = `${selectedFiles.length} files selected (~${estTokens} tokens)`;
+}
+
+function renderFileList() {
+    fileListContainer.innerHTML = '';
+
+    // Sort by path
+    projectFiles.sort((a, b) => a.path.localeCompare(b.path));
+
+    projectFiles.forEach((file, index) => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = file.selected;
+        checkbox.onchange = (e) => {
+            file.selected = e.target.checked;
+            updateTokenStats();
+        };
+
+        const name = document.createElement('span');
+        name.className = 'file-name';
+        name.textContent = file.path;
+        name.title = file.path;
+
+        const size = document.createElement('span');
+        size.className = 'file-size';
+        size.textContent = `${Math.round(file.size / 1024)}KB`;
+
+        item.appendChild(checkbox);
+        item.appendChild(name);
+        item.appendChild(size);
+
+        // Allow clicking row to toggle
+        item.onclick = (e) => {
+            if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        };
+
+        fileListContainer.appendChild(item);
+    });
+}
+
+function updateTokenStats() {
+    const selectedFiles = projectFiles.filter(f => f.selected);
+    const totalChars = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+    const estTokens = Math.round(totalChars / 4);
+
+    tokenCountEl.textContent = estTokens.toLocaleString();
+
+    const statsContainer = document.querySelector('.token-stats');
+    if (estTokens > 10000) {
+        statsContainer.classList.add('warning');
+    } else {
+        statsContainer.classList.remove('warning');
+    }
+}
+
+function readFileAsync(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsText(file);
+    });
+}
+
 // Handle form submission
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -215,10 +436,29 @@ chatForm.addEventListener('submit', async (e) => {
     scrollToBottom();
 
     try {
+        let messagesPayload = [...conversationHistory];
+
+        // Build context from Selected Files ONLY
+        // Check if there are selected files
+        const selectedFiles = projectFiles.filter(f => f.selected);
+
+        if (selectedFiles.length > 0) {
+            // Rebuild context string
+            let contextString = `Project: ${projectRootName}\n\n`;
+            for (const file of selectedFiles) {
+                contextString += `File: /${file.path}\n\`\`\`\n${file.content}\n\`\`\`\n\n`;
+            }
+
+            messagesPayload = [
+                { role: 'system', content: `Start of Project Context:\n${contextString}\nEnd of Project Context. Answer based on this code.` },
+                ...messagesPayload
+            ];
+        }
+
         const response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages: conversationHistory }),
+            body: JSON.stringify({ messages: messagesPayload }),
         });
 
         if (!response.ok) throw new Error('Error en la respuesta del servidor');

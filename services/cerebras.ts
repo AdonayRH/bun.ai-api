@@ -1,17 +1,33 @@
 import Cerebras from '@cerebras/cerebras_cloud_sdk';
 import type { AIService, ChatMessage, CerebrasStreamChunk } from '../types';
+import { ATOMIC_DESIGN_PROMPT, POLICY } from './prompts';
 
-const cerebras = new Cerebras({
-});
+const cerebras = new Cerebras({});
 
 export const cerebrasService: AIService = {
     name: 'cerebras',
     async chat(messages: ChatMessage[]) {
         const stream = await cerebras.chat.completions.create({
-            messages: messages.map((message) => ({
-                role: message.role,
-                content: message.content,
-            })),
+            messages: (function () {
+                const systemInstructions = [ATOMIC_DESIGN_PROMPT, POLICY].join('\n\n');
+                if (messages[0]?.role === 'system') {
+                    return [
+                        { role: 'system', content: systemInstructions + "\n\n" + messages[0].content },
+                        ...messages.slice(1).map((message) => ({
+                            role: message.role,
+                            content: message.content,
+                        }))
+                    ];
+                } else {
+                    return [
+                        { role: 'system', content: systemInstructions },
+                        ...messages.map((message) => ({
+                            role: message.role,
+                            content: message.content,
+                        }))
+                    ];
+                }
+            })(),
             model: 'zai-glm-4.6',
             stream: true,
             max_completion_tokens: 40960,

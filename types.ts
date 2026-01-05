@@ -15,3 +15,11 @@ export interface CerebrasStreamChunk {
         };
     }>;
 }
+
+export interface GeminiStreamChunk {
+    choices: Array<{
+        delta?: {
+            content?: string;
+        };
+    }>;
+}
